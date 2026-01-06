@@ -48,6 +48,11 @@ kernel = np.ones((3,3), np.uint8)
 # Perform erosion
 eroded_image = cv.erode(image, kernel, iterations=2)
 
+# Convert back to RGB before saving (for color images only)
+if data.ndim == 3:
+    eroded_image = cv.cvtColor(eroded_image, cv.COLOR_BGR2RGB)
+
+
 # Save the eroded image 
 cv.imwrite('./results/eroded.png', eroded_image)
 
