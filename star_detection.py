@@ -35,10 +35,10 @@ print(f"  Écart-type: {std:.2f}")
 #détection des étoiles avec DAOStarFinder
 
 # fwhm : largeur typique d'une étoile en pixels
-fwhm = 2.0
+fwhm = 3.0
 
 # combien de fois plus brillant que le bruit pour être une étoile
-threshold = 4.0
+threshold = 5.5
 
 # créer le détecteur
 daofind = DAOStarFinder(fwhm=fwhm, threshold=threshold * std)
@@ -51,14 +51,26 @@ print(f"\nNombre d'étoiles détectées: {len(sources)}")
 # créer le masque (image noire au départ)
 mask = np.zeros(data.shape, dtype=np.uint8)
 
-# pour chaque étoile, mettre 1 pixel blanc
+# rayon du cercle (diamètre de 3px = rayon de 1.5px)
+radius = 5.5
+
+# pour chaque étoile, dessiner un cercle blanc
 for star in sources:
     x = int(star['xcentroid'])
     y = int(star['ycentroid'])
     
     # vérifier que les coordonnées sont dans l'image
     if 0 <= y < data.shape[0] and 0 <= x < data.shape[1]:
-        mask[y, x] = 255
+        # créer un cercle autour de l'étoile
+        range_size = int(radius) + 1
+        for dy in range(-range_size, range_size + 1):
+            for dx in range(-range_size, range_size + 1):
+                new_y = y + dy
+                new_x = x + dx
+                # vérifier que le pixel est dans l'image et dans le cercle
+                if (0 <= new_y < data.shape[0] and 0 <= new_x < data.shape[1] and
+                    np.sqrt(dx**2 + dy**2) <= radius):
+                    mask[new_y, new_x] = 255
 
 print(f"\nMasque créé : {mask.shape}")
 print(f"Pixels blancs (étoiles): {np.sum(mask == 255)}")
