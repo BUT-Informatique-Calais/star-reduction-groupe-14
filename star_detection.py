@@ -52,7 +52,7 @@ print(f"\nNombre d'étoiles détectées: {len(sources)}")
 mask = np.zeros(data.shape, dtype=np.uint8)
 
 # rayon du cercle (diamètre de 3px = rayon de 1.5px)
-radius = 5.5
+radius = 3.5
 
 # pour chaque étoile, dessiner un cercle blanc
 for star in sources:
@@ -72,8 +72,7 @@ for star in sources:
                     np.sqrt(dx**2 + dy**2) <= radius):
                     mask[new_y, new_x] = 255
 
-print(f"\nMasque créé : {mask.shape}")
-print(f"Pixels blancs (étoiles): {np.sum(mask == 255)}")
+#print(f"Pixels blancs (étoiles): {np.sum(mask == 255)}")
 
 # sauvegarder le masque en png
 plt.imsave('./results/star_mask.png', mask, cmap='gray')
