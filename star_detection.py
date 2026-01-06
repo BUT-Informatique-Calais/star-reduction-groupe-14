@@ -6,6 +6,7 @@ from photutils.detection import DAOStarFinder
 from astropy.stats import sigma_clipped_stats
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import ndimage
 
 # ouvrir le fichier fits
 fits_file = './examples/test_M31_linear.fits'
