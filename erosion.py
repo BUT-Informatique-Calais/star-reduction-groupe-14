@@ -28,18 +28,33 @@ if data.ndim == 3:
     
     # Save the data as a png image (no cmap for color images)
     plt.imsave('./results/original.png', data_normalized)
-    
-    # Normalize each channel separately to [0, 255] for OpenCV
-    image = np.zeros_like(data, dtype='uint8')
-    for i in range(data.shape[2]):
-        channel = data[:, :, i]
-        image[:, :, i] = ((channel - channel.min()) / (channel.max() - channel.min()) * 255).astype('uint8')
+
+    # Pour OpenCV, garder l'ordre des canaux RGB (ne pas convertir en BGR)
+    image = (data_normalized * 255).astype('uint8')
+
+    # Définir le noyau et appliquer l'érosion
+    kernel = np.ones((3, 3), np.uint8)
+    eroded_image = cv.erode(image, kernel, iterations=2)
+
+    # Convertir back en float pour FITS (garder les couleurs originales)
+    eroded_float = eroded_image.astype(np.float32) / 255.0
+
+    # Sauvegarder PNG avec matplotlib (préserve les couleurs RGB)
+    plt.imsave('./results/eroded.png', eroded_image / 255.0)
+
 else:
     # Monochrome image
     plt.imsave('./results/original.png', data, cmap='gray')
     
     # Convert to uint8 for OpenCV
     image = ((data - data.min()) / (data.max() - data.min()) * 255).astype('uint8')
+
+    # Apply erosion
+    kernel = np.ones((3, 3), np.uint8)
+    eroded_image = cv.erode(image, kernel, iterations=2)
+
+    # Convert back to float
+    eroded_float = eroded_image.astype(np.float32) / 255.0
 
 
 
@@ -52,9 +67,11 @@ eroded_image = cv.erode(image, kernel, iterations=2)
 if data.ndim == 3:
     eroded_image = cv.cvtColor(eroded_image, cv.COLOR_BGR2RGB)
 
-
 # Save the eroded image 
-cv.imwrite('./results/eroded.png', eroded_image)
+cv.imwrite('./results/eroded.png', eroded_image) #for easyer visualization
+fits.writeto('./results/eroded.fits', eroded_float, overwrite=True)
 
 # Close the file
 hdul.close()
+
+#TODO : trad commentaires

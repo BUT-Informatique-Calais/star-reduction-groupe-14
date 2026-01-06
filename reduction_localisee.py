@@ -1,6 +1,6 @@
 # Groupe 14
-# 04/01/2026
-# Étape B : Réduction localisée
+# created on 04/01/2026
+# last update : 06/01/2026
 
 from astropy.io import fits
 import matplotlib.pyplot as plt
@@ -8,51 +8,61 @@ import numpy as np
 from scipy import ndimage
 from PIL import Image
 
-# charger l'image originale
-original = Image.open('./results/original.png')
-Ioriginal = np.array(original)
+# Charger l'image originale FITS
+hdul_original = fits.open('./examples/test_M31_linear.fits')
+data_original = hdul_original[0].data
 
-# convertir en RGB (3 canaux) si nécessaire
-if Ioriginal.ndim == 2:
-    Ioriginal = np.stack([Ioriginal, Ioriginal, Ioriginal], axis=2)
-elif Ioriginal.shape[2] == 4:  # Si RGBA, supprimer le canal alpha
-    Ioriginal = Ioriginal[:, :, :3]
+# Gérer les dimensions (couleur ou monochrome)
+if data_original.ndim == 3 and data_original.shape[0] == 3:
+    # Transposer de (3, height, width) vers (height, width, 3)
+    Ioriginal = np.transpose(data_original, (1, 2, 0))
+elif data_original.ndim == 2:
+    # Image monochrome - la dupliquer sur 3 canaux pour uniformiser
+    Ioriginal = np.stack([data_original, data_original, data_original], axis=2)
+else:
+    Ioriginal = data_original
 
-# charger l'image érodée
-eroded = Image.open('./results/eroded.png')
-Ierode = np.array(eroded)
+# Charger l'image érodée FITS
+# TODO (créer d'abord un fichier FITS dans erosion.py)
+hdul_eroded = fits.open('./results/eroded.fits')
+Ierode = hdul_eroded[0].data
 
-# convertir en RGB (3 canaux) si nécessaire
-if Ierode.ndim == 2:
-    Ierode = np.stack([Ierode, Ierode, Ierode], axis=2)
-elif Ierode.shape[2] == 4:  # Si RGBA, supprimer le canal alpha
-    Ierode = Ierode[:, :, :3]
+# Normaliser les données entre 0 et 1
+Ioriginal_norm = (Ioriginal - Ioriginal.min()) / (Ioriginal.max() - Ioriginal.min())
+Ierode_norm = (Ierode - Ierode.min()) / (Ierode.max() - Ierode.min())
 
-# normaliser Ierode entre 0 et 1
-Ierode = Ierode.astype(np.float32) / 255.0
 
 # charger le masque d'étoiles
 hdul_mask = fits.open('./results/star_mask.fits')
 M_raw = hdul_mask[0].data
 
 
-# 2. Créer un masque lissé avec flou gaussien
-M = ndimage.gaussian_filter(M_raw.astype(np.float32) / 255.0, sigma=2.0) #sigma : contrôle l'étendue de l'effet du masque autour des étoiles
-M = np.where(M > 0.5, M, 0)  # Supprime les valeurs très faibles
-# Étendre le masque pour les 3 canaux couleur
-M = np.stack([M, M, M], axis=2)
+# Créer un masque lissé avec flou gaussien
+M = ndimage.gaussian_filter(M_raw.astype(np.float32), sigma=6.0)
+M = M / M.max()  # Normaliser entre 0 et 1
+M = np.where(M > 0.05, M, 0)
 
-# 3. Calculer l'image finale par interpolation
-Ioriginal_float = Ioriginal.astype(np.float32) / 255.0
-Ifinal = (M * Ierode) + ((1 - M) * Ioriginal_float)
+# Appliquer un deuxième lissage pour plus de douceur
+M = ndimage.gaussian_filter(M, sigma=2.0)
+
+# Étendre le masque pour les 3 canaux couleur si nécessaire
+if Ioriginal_norm.ndim == 3:
+    M = np.stack([M, M, M], axis=2)
+
+# Calculer l'image finale par interpolation
+Ifinal = (M * Ierode_norm) + ((1 - M) * Ioriginal_norm)
 
 
-# sauvegarder le masque lissé (prendre un seul canal)
-M_save = (M[:,:,0] * 255).astype(np.uint8)
-plt.imsave('./results/masque_lisse.png', M_save)
+# Sauvegarder l'image finale en FITS
+fits.writeto('./results/image_finale.fits', Ifinal, overwrite=True)
 
-# sauvegarder l'image finale
-Ifinal_save = (Ifinal * 255).astype(np.uint8)
-plt.imsave('./results/image_finale.png', Ifinal_save)
+# Sauvegarder aussi en PNG pour visualisation
+if Ifinal.ndim == 3:
+    plt.imsave('./results/image_finale.png', Ifinal)
+else:
+    plt.imsave('./results/image_finale.png', Ifinal)
 
+# Fermer les fichiers
+hdul_original.close()
+hdul_eroded.close()
 hdul_mask.close()
