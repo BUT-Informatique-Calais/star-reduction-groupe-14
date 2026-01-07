@@ -1,5 +1,5 @@
 """
-Interface PyQt6 pour la réduction astro - Avant/Après
+Interface PyQt6 pour la réduction astro - Avant/Aprè
 """
 
 import sys
