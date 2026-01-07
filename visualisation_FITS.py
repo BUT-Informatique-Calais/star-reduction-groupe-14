@@ -31,3 +31,5 @@ def view_fits(filename):
 # Utilisation
 view_fits('./results/image_finale.fits')
 view_fits('./examples/test_M31_linear.fits')
+view_fits('./examples/HorseHead.fits')
+view_fits('./examples/test_M31_raw.fits')

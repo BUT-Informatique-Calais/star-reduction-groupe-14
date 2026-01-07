@@ -4,10 +4,8 @@ Interface graphique simple pour visualiser l'avant/après du traitement d'images
 
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk
 import numpy as np
 from astropy.io import fits
-import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import os

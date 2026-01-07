@@ -46,7 +46,7 @@ Example files are located in the `examples/` directory. You can run the scripts 
 - Example 3 : `examples/test_M31_raw.fits` (Color FITS image file for testing)
 
 ## Known Issues
-- Problème 1 : venv différent pour chaque collaborateur. Solution : gitignore
+- Problem 1: different venv (virtual environment) for each collaborator. Solution : gitignore
 
 ## Authors
 - François Alex
