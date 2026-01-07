@@ -45,10 +45,10 @@ Example files are located in the `examples/` directory. You can run the scripts 
 - Example 2 : `examples/test_M31_linear.fits` (Color FITS image file for testing)
 - Example 3 : `examples/test_M31_raw.fits` (Color FITS image file for testing)
 
-## Problèmes rencontrés
+## Known Issues
 - Problème 1 : venv différent pour chaque collaborateur. Solution : gitignore
 
-## Auteurs
+## Authors
 - François Alex
 - Théobald Romain
 - Vanbaelinghem -- Dezitter Willem
