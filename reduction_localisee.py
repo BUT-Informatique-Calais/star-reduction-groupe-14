@@ -39,12 +39,8 @@ M_raw = hdul_mask[0].data
 
 
 # Créer un masque lissé avec flou gaussien
-M = ndimage.gaussian_filter(M_raw.astype(np.float32), sigma=6.0)
-M = M / M.max()  # Normaliser entre 0 et 1
-M = np.where(M > 0.05, M, 0)
-
-# Appliquer un deuxième lissage pour plus de douceur
-M = ndimage.gaussian_filter(M, sigma=2.0)
+M = ndimage.gaussian_filter(M_raw.astype(np.float32) / 255.0, sigma=2.0) #sigma : contrôle l'étendue de l'effet du masque autour des étoiles
+M = np.where(M > 0.5, M, 0)  # Supprime les valeurs très faibles
 
 # Étendre le masque pour les 3 canaux couleur si nécessaire
 if Ioriginal_norm.ndim == 3:
