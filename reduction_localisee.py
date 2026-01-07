@@ -2,6 +2,8 @@
 # created on 04/01/2026
 # last update : 06/01/2026
 
+#modiifer quelque commentaire a 8h35 Alex F
+
 from astropy.io import fits
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,10 +55,10 @@ if Ioriginal_norm.ndim == 3:
 Ifinal = (M * Ierode_norm) + ((1 - M) * Ioriginal_norm)
 
 
-# Sauvegarder l'image finale en FITS
+# Save the final image as FITS
 fits.writeto('./results/image_finale.fits', Ifinal, overwrite=True)
 
-# Sauvegarder aussi en PNG pour visualisation
+# Save the final image as PNG
 if Ifinal.ndim == 3:
     plt.imsave('./results/image_finale.png', Ifinal)
 else:
