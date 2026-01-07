@@ -25,7 +25,6 @@ else:
     Ioriginal = data_original
 
 # Charger l'image érodée FITS
-# TODO (créer d'abord un fichier FITS dans erosion.py)
 hdul_eroded = fits.open('./results/eroded.fits')
 Ierode = hdul_eroded[0].data
 
