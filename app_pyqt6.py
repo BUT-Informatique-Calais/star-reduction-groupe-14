@@ -33,6 +33,9 @@ class ImageCanvas(FigureCanvas):
         
         # Binder le clic
         self.mpl_connect('button_press_event', self.on_click)
+
+        # Afficher le message par défaut
+        self.clear_display()
     
     def on_click(self, event):
         """Émet le signal quand on clique"""
@@ -60,6 +63,16 @@ class ImageCanvas(FigureCanvas):
             self.ax.imshow(data_norm, cmap=cmap, origin='upper')
         
         self.ax.set_title(title, fontsize=10, color='white', fontweight='bold')
+        self.ax.axis('off')
+        self.fig.patch.set_facecolor('black')
+        self.draw()
+
+    def clear_display(self):
+        """Affiche le message par défaut quand aucune image n'est chargée"""
+        self.ax.clear()
+        self.ax.text(0.5, 0.5, 'Aucune image chargée',
+                     ha='center', va='center', color='gray', fontsize=12,
+                     transform=self.ax.transAxes)
         self.ax.axis('off')
         self.fig.patch.set_facecolor('black')
         self.draw()
@@ -220,6 +233,7 @@ class ReductionAstroApp(QMainWindow):
         
         # Titre
         title_label = QLabel(title)
+        title_label.setFixedHeight(50)
         title_font = QFont("Arial", 11, QFont.Weight.Bold)
         title_label.setFont(title_font)
         title_label.setStyleSheet(f"""
@@ -352,14 +366,9 @@ class ReductionAstroApp(QMainWindow):
             'masque': None,
             'finale': None
         }
-        
-        for canvas in [self.canvas_original, self.canvas_finale]:
-            canvas.ax.clear()
-            canvas.ax.text(0.5, 0.5, 'Aucune image chargée', 
-                          ha='center', va='center', color='gray', fontsize=12,
-                          transform=canvas.ax.transAxes)
-            canvas.ax.axis('off')
-            canvas.draw()
+
+        self.canvas_original.clear_display()
+        self.canvas_finale.clear_display()
         
         self.statusBar().showMessage("En attente d'une image...")
 
