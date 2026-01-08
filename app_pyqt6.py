@@ -5,17 +5,16 @@ Interface PyQt6 pour la réduction astro - Avant/Aprè
 import sys
 import numpy as np
 from astropy.io import fits
-import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvas
 import cv2
 from scipy import ndimage
-import os
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QPushButton, QFileDialog, QGridLayout, QMessageBox, QStatusBar
+    QLabel, QPushButton, QFileDialog, QGridLayout, QMessageBox,
+    QSlider, QSpinBox, QGroupBox
 )
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, pyqtSignal
 
 
@@ -150,6 +149,10 @@ class ReductionAstroApp(QMainWindow):
         images_layout.addWidget(self.create_panel("IMAGE FINALE", self.canvas_finale), 0, 1)
         
         main_layout.addLayout(images_layout, 1)
+
+        # Ajouter le panneau de contrôles
+        controls_panel = self.create_controls_panel()
+        main_layout.addWidget(controls_panel)
         
         # Barre de boutons
         buttons_layout = QHBoxLayout()
@@ -257,6 +260,99 @@ class ReductionAstroApp(QMainWindow):
         """)
         
         return panel
+
+    def create_controls_panel(self):
+        """Crée le panneau de contrôles avec sliders"""
+        controls_group = QGroupBox("Paramètres de traitement")
+        controls_group.setStyleSheet(f"""
+            QGroupBox {{
+                font-weight: bold;
+                border: 2px solid {self.couleur_principale};
+                border-radius: 5px;
+                margin-top: 1ex;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }}
+        """)
+
+        layout = QVBoxLayout()
+
+        # Kernel size
+        kernel_layout = QHBoxLayout()
+        kernel_layout.addWidget(QLabel("Taille du kernel:"))
+        self.kernel_slider = QSlider(Qt.Orientation.Horizontal)
+        self.kernel_slider.setMinimum(1)
+        self.kernel_slider.setMaximum(10)
+        self.kernel_slider.setValue(1)
+        self.kernel_slider.valueChanged.connect(self.on_slider_change)
+        self.kernel_label = QLabel("3x3")
+        kernel_layout.addWidget(self.kernel_slider)
+        kernel_layout.addWidget(self.kernel_label)
+        layout.addLayout(kernel_layout)
+
+        # Itérations
+        iter_layout = QHBoxLayout()
+        iter_layout.addWidget(QLabel("Itérations:"))
+        self.iter_slider = QSlider(Qt.Orientation.Horizontal)
+        self.iter_slider.setMinimum(1)
+        self.iter_slider.setMaximum(10)
+        self.iter_slider.setValue(2)
+        self.iter_slider.valueChanged.connect(self.on_slider_change)
+        self.iter_label = QLabel("2")
+        iter_layout.addWidget(self.iter_slider)
+        iter_layout.addWidget(self.iter_label)
+        layout.addLayout(iter_layout)
+
+        # Flou gaussien
+        gauss_layout = QHBoxLayout()
+        gauss_layout.addWidget(QLabel("Flou gaussien:"))
+        self.gauss_slider = QSlider(Qt.Orientation.Horizontal)
+        self.gauss_slider.setMinimum(10)
+        self.gauss_slider.setMaximum(100)
+        self.gauss_slider.setValue(60)
+        self.gauss_slider.valueChanged.connect(self.on_slider_change)
+        self.gauss_label = QLabel("6.0")
+        gauss_layout.addWidget(self.gauss_slider)
+        gauss_layout.addWidget(self.gauss_label)
+        layout.addLayout(gauss_layout)
+
+        # Seuil du masque
+        seuil_layout = QHBoxLayout()
+        seuil_layout.addWidget(QLabel("Seuil masque:"))
+        self.seuil_slider = QSlider(Qt.Orientation.Horizontal)
+        self.seuil_slider.setMinimum(1)
+        self.seuil_slider.setMaximum(100)
+        self.seuil_slider.setValue(5)
+        self.seuil_slider.valueChanged.connect(self.on_slider_change)
+        self.seuil_label = QLabel("0.05")
+        seuil_layout.addWidget(self.seuil_slider)
+        seuil_layout.addWidget(self.seuil_label)
+        layout.addLayout(seuil_layout)
+
+        controls_group.setLayout(layout)
+        return controls_group
+
+    def on_slider_change(self):
+        """Appelé quand un slider change - met à jour les labels et retraite"""
+        # Mettre à jour tous les labels
+        sizes = {1: "3x3", 2: "5x5", 3: "7x7", 4: "9x9", 5: "11x11", 6: "13x13", 7: "15x15", 8: "17x17", 9: "19x19", 10: "21x21"}
+        self.kernel_label.setText(sizes[self.kernel_slider.value()])
+
+        self.iter_label.setText(str(self.iter_slider.value()))
+
+        gauss_value = self.gauss_slider.value() / 10.0
+        self.gauss_label.setText(f"{gauss_value:.1f}")
+
+        seuil_value = self.seuil_slider.value() / 100.0
+        self.seuil_label.setText(f"{seuil_value:.2f}")
+
+        # Retraiter automatiquement si une image est chargée
+        if self.images_data['original'] is not None:
+            self.retraiter()
     
     def charger_et_traiter(self):
         """Charge et traite une image"""
@@ -332,11 +428,11 @@ class ReductionAstroApp(QMainWindow):
             self.images_data['finale'] = image_finale
             self.canvas_finale.display_image(image_finale, "Finale")
             
-            self.statusBar().showMessage("✓ Traitement terminé")
+            self.statusBar().showMessage("Traitement terminé")
             
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors du traitement:\n{str(e)}")
-            self.statusBar().showMessage("✗ Erreur")
+            self.statusBar().showMessage("Erreur")
     
     def show_erodee(self):
         """Affiche la fenêtre avec l'image érodée"""
@@ -345,6 +441,70 @@ class ReductionAstroApp(QMainWindow):
             return
         
         self.show_zoom(self.images_data['erodee'], "Image Érodée")
+
+    def retraiter(self):
+        """Retraite l'image avec les nouveaux paramètres"""
+        if self.images_data['original'] is None:
+            QMessageBox.warning(self, "Attention", "Veuillez charger une image d'abord")
+            return
+
+        self.statusBar().showMessage("Retraitement en cours...")
+
+        try:
+            data_norm = self.images_data['original']
+
+            # Récupérer les paramètres des sliders
+            kernel_sizes = {1: 3, 2: 5, 3: 7, 4: 9, 5: 11, 6: 13, 7: 15, 8: 17, 9: 19, 10: 21}
+            kernel_size = kernel_sizes[self.kernel_slider.value()]
+            iterations = self.iter_slider.value()
+            gauss_sigma = self.gauss_slider.value() / 10.0
+            seuil = self.seuil_slider.value() / 100.0
+
+            # Érosion avec nouveaux paramètres
+            if data_norm.ndim == 3:
+                data_uint8 = (data_norm * 255).astype(np.uint8)
+                kernel = np.ones((kernel_size, kernel_size), np.uint8)
+                data_eroded = cv2.erode(data_uint8, kernel, iterations=iterations)
+                data_result_eroded = data_eroded.astype(float) / 255.0
+            else:
+                data_uint8 = (data_norm * 255).astype(np.uint8)
+                kernel = np.ones((kernel_size, kernel_size), np.uint8)
+                data_eroded = cv2.erode(data_uint8, kernel, iterations=iterations)
+                data_result_eroded = data_eroded.astype(float) / 255.0
+
+            self.images_data['erodee'] = data_result_eroded
+
+            # Masque avec nouveaux paramètres
+            if data_norm.ndim == 3:
+                data_norm_gray = np.mean(data_norm, axis=2)
+                data_eroded_gray = np.mean(data_result_eroded, axis=2)
+            else:
+                data_norm_gray = data_norm
+                data_eroded_gray = data_result_eroded
+
+            masque_brut = np.abs(data_norm_gray - data_eroded_gray)
+            masque_lisse = ndimage.gaussian_filter(masque_brut.astype(np.float32), sigma=gauss_sigma)
+            masque_norm = masque_lisse / (np.nanmax(masque_lisse) + 1e-8)
+            masque_norm = np.where(masque_norm > seuil, masque_norm, 0)
+            masque_final = ndimage.gaussian_filter(masque_norm, sigma=2.0)
+
+            self.images_data['masque'] = masque_final
+
+            # Image finale
+            if data_norm.ndim == 3:
+                masque_3d = np.stack([masque_final, masque_final, masque_final], axis=2)
+                image_finale = data_norm * (1 - masque_3d) + data_result_eroded * masque_3d
+            else:
+                image_finale = data_norm * (1 - masque_final) + data_result_eroded * masque_final
+
+            self.images_data['finale'] = image_finale
+            self.canvas_finale.display_image(image_finale, "Finale")
+
+            self.statusBar().showMessage("✓ Retraitement terminé")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors du retraitement:\n{str(e)}")
+            self.statusBar().showMessage("Erreur")
     
     def show_zoom(self, data, title):
         """Affiche une fenêtre de zoom"""
