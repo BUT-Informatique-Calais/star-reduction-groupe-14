@@ -4,21 +4,21 @@ import numpy as np
 
 
 def view_fits(filename):
-    """Visualiser un fichier FITS"""
+    # Open and read the FITS file
     hdul = fits.open(filename)
     data = hdul[0].data
 
     plt.figure(figsize=(10, 8))
 
     if data.ndim == 3:
-        # Image couleur - transposer si nécessaire
+        # Color image 
         if data.shape[0] == 3:
             data = np.transpose(data, (1, 2, 0))
-        # Normaliser pour l'affichage
+        # Normalize for display
         data_norm = (data - data.min()) / (data.max() - data.min())
         plt.imshow(data_norm)
     else:
-        # Image monochrome
+        # Monochrome image
         plt.imshow(data, cmap='gray')
 
     plt.colorbar()
@@ -28,7 +28,7 @@ def view_fits(filename):
     hdul.close()
 
 
-# Utilisation
+# Example usage
 view_fits('./results/image_finale.fits')
 view_fits('./examples/test_M31_linear.fits')
 view_fits('./examples/HorseHead.fits')

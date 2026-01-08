@@ -1,9 +1,3 @@
-# Groupe 14
-# created on 04/01/2026
-# last update : 07/01/2026
-
-#modiifer quelque commentaire a 8h35 Alex F
-
 from astropy.io import fits
 import matplotlib.pyplot as plt
 import numpy as np
