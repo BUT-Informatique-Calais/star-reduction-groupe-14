@@ -384,20 +384,27 @@ class ReductionAstroApp(QMainWindow):
             # Afficher l'original
             self.images_data['original'] = data_norm
             self.canvas_original.display_image(data_norm, "Originale")
-            
+
+            # Récupérer les paramètres des sliders pour le traitement initial
+            kernel_sizes = {1: 3, 2: 5, 3: 7, 4: 9, 5: 11, 6: 13, 7: 15, 8: 17, 9: 19, 10: 21}
+            kernel_size = kernel_sizes[self.kernel_slider.value()]
+            iterations = self.iter_slider.value()
+            gauss_sigma = self.gauss_slider.value() / 10.0
+            seuil = self.seuil_slider.value() / 100.0
+
             # Érosion
             if data_norm.ndim == 3:
                 data_uint8 = (data_norm * 255).astype(np.uint8)
-                kernel = np.ones((3, 3), np.uint8)
-                data_eroded = cv2.erode(data_uint8, kernel, iterations=2)
+                kernel = np.ones((kernel_size, kernel_size), np.uint8)
+                data_eroded = cv2.erode(data_uint8, kernel, iterations=iterations)
                 data_result_eroded = data_eroded.astype(float) / 255.0
             else:
                 data_uint8 = (data_norm * 255).astype(np.uint8)
-                kernel = np.ones((3, 3), np.uint8)
-                data_eroded = cv2.erode(data_uint8, kernel, iterations=2)
+                kernel = np.ones((kernel_size, kernel_size), np.uint8)
+                data_eroded = cv2.erode(data_uint8, kernel, iterations=iterations)
                 data_result_eroded = data_eroded.astype(float) / 255.0
             
-            # Afficher érodée (stockage uniquement, pas d'affichage)
+            # érodée
             self.images_data['erodee'] = data_result_eroded
             
             # Créer le masque
@@ -407,11 +414,11 @@ class ReductionAstroApp(QMainWindow):
             else:
                 data_norm_gray = data_norm
                 data_eroded_gray = data_result_eroded
-            
+
             masque_brut = np.abs(data_norm_gray - data_eroded_gray)
-            masque_lisse = ndimage.gaussian_filter(masque_brut.astype(np.float32), sigma=6.0)
+            masque_lisse = ndimage.gaussian_filter(masque_brut.astype(np.float32), sigma=gauss_sigma)
             masque_norm = masque_lisse / (np.nanmax(masque_lisse) + 1e-8)
-            masque_norm = np.where(masque_norm > 0.05, masque_norm, 0)
+            masque_norm = np.where(masque_norm > seuil, masque_norm, 0)
             masque_final = ndimage.gaussian_filter(masque_norm, sigma=2.0)
             
             # Stocker le masque (pas d'affichage)
@@ -500,7 +507,7 @@ class ReductionAstroApp(QMainWindow):
             self.images_data['finale'] = image_finale
             self.canvas_finale.display_image(image_finale, "Finale")
 
-            self.statusBar().showMessage("✓ Retraitement terminé")
+            self.statusBar().showMessage("Retraitement terminé")
 
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors du retraitement:\n{str(e)}")
@@ -519,18 +526,19 @@ class ReductionAstroApp(QMainWindow):
         self.zoom_windows.append(zoom_window)
     
     def reinitialiser(self):
-        """Réinitialise l'interface"""
-        self.images_data = {
-            'original': None,
-            'erodee': None,
-            'masque': None,
-            'finale': None
-        }
+        """Réinitialise les sliders"""
 
-        self.canvas_original.clear_display()
-        self.canvas_finale.clear_display()
-        
-        self.statusBar().showMessage("En attente d'une image...")
+        # Remettre les sliders à leurs valeurs par défaut
+        self.kernel_slider.setValue(1)
+        self.iter_slider.setValue(2)
+        self.gauss_slider.setValue(60)
+        self.seuil_slider.setValue(5)
+
+        # Si une image est chargée, la retraiter avec les valeurs par défaut
+        if self.images_data['original'] is not None:
+            self.statusBar().showMessage("Réinitialisation des paramètres...")
+        else:
+            self.statusBar().showMessage("En attente d'une image...")
 
 
 def main():
