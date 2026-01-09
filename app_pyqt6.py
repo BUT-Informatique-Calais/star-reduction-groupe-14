@@ -38,6 +38,7 @@ class ImageCanvas(FigureCanvasQTAgg):
         self.clear_display()
     
     def on_click(self, event):
+        """Émet le signal quand on clique"""
         if event.inaxes is not None and self.image_data is not None:
             self.clicked.emit(self.image_data)
     
@@ -47,7 +48,7 @@ class ImageCanvas(FigureCanvasQTAgg):
         
         self.ax.clear()
         
-        # Normaliser les données pour l'affichage
+        # Normaliser les données
         data_min = np.nanmin(data)
         data_max = np.nanmax(data)
         if data_max > data_min:
@@ -97,11 +98,81 @@ class ZoomWindow(QMainWindow):
         self.setCentralWidget(widget)
 
 
+class ComparatorWindow(QMainWindow):
+    """Fenêtre simple de comparaison"""
+    def __init__(self, original, final):
+        super().__init__()
+        self.setWindowTitle("Comparateur - Original vs Final")
+        self.setGeometry(100, 100, 1000, 800)
+        self.original = original
+        self.final = final
+
+        layout = QVBoxLayout()
+
+        # Canvas pour l'image de comparaison
+        self.canvas = ImageCanvas(width=10, height=7, dpi=100)
+        layout.addWidget(self.canvas, 1)
+
+        # Slider en bas avec spacing pour aligner avec l'image
+        slider_container = QWidget()
+        slider_layout = QHBoxLayout()
+        slider_layout.setContentsMargins(60, 0, 60, 0)  # Margins pour aligner avec l'image
+
+        slider_label_left = QLabel("Original")
+        slider_label_left.setFixedWidth(60)
+        slider_layout.addWidget(slider_label_left)
+
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(100)
+        self.slider.setValue(50)
+        self.slider.valueChanged.connect(self.update_comparison)
+        self.slider.setFixedHeight(20)
+        slider_layout.addWidget(self.slider, 1)
+
+        self.percent_label = QLabel("50%")
+        self.percent_label.setFixedWidth(40)
+        slider_layout.addWidget(self.percent_label)
+
+        slider_label_right = QLabel("Final")
+        slider_label_right.setFixedWidth(40)
+        slider_layout.addWidget(slider_label_right)
+
+        slider_container.setLayout(slider_layout)
+        slider_container.setFixedHeight(50)
+        layout.addWidget(slider_container)
+
+        widget = QWidget()
+        widget.setLayout(layout)
+        self.setCentralWidget(widget)
+        self.setStyleSheet(f"background-color: #f0f0f0;")
+
+        self.update_comparison()
+
+    def update_comparison(self):
+        """Met à jour la comparaison selon le slider"""
+        value = self.slider.value()
+        self.percent_label.setText(f"{value}%")
+
+        # Créer l'image composite
+        split = int(self.original.shape[1] * value / 100)
+        if self.original.ndim == 3:
+            composite = np.zeros_like(self.original)
+            composite[:, :split] = self.original[:, :split]
+            composite[:, split:] = self.final[:, split:]
+        else:
+            composite = np.zeros_like(self.original)
+            composite[:, :split] = self.original[:, :split]
+            composite[:, split:] = self.final[:, split:]
+
+        self.canvas.display_image(composite, "")
+
+
 class ReductionAstroApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Réduction Astro")
-        self.setGeometry(50, 50, 1400, 900)
+        self.setGeometry(50, 50, 1400, 850)
 
         # Styles
         self.couleur_principale = "#2c3e50"
@@ -219,6 +290,24 @@ class ReductionAstroApp(QMainWindow):
         """)
         btn_masque.clicked.connect(self.show_masque)
         buttons_layout.addWidget(btn_masque)
+
+        btn_comparateur = QPushButton("Comparateur")
+        btn_comparateur.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        btn_comparateur.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #1abc9c;
+                color: {self.couleur_texte};
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #16a085;
+            }}
+        """)
+        btn_comparateur.clicked.connect(self.show_comparateur)
+        buttons_layout.addWidget(btn_comparateur)
 
         btn_reinitialiser = QPushButton("Réinitialiser les sliders")
         btn_reinitialiser.setFont(QFont("Arial", 11, QFont.Weight.Bold))
@@ -564,6 +653,16 @@ class ReductionAstroApp(QMainWindow):
         # Garder une référence pour éviter le garbage collection
         self.zoom_windows.append(zoom_window)
     
+    def show_comparateur(self):
+        """Affiche la fenêtre de comparaison"""
+        if self.images_data['original'] is None or self.images_data['finale'] is None:
+            QMessageBox.warning(self, "Attention", "Veuillez charger et traiter une image d'abord")
+            return
+
+        comparator = ComparatorWindow(self.images_data['original'], self.images_data['finale'])
+        comparator.show()
+        self.zoom_windows.append(comparator)
+
     def reinitialiser(self):
         """Réinitialise les sliders"""
         # Remettre les sliders à leurs valeurs par défaut
