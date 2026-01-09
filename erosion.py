@@ -1,75 +1,73 @@
+"""
+Module d'érosion d'image pour réduction d'étoiles
+"""
+
 from astropy.io import fits
 import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
 
-# Open and read the FITS file
-fits_file = './examples/test_M31_linear.fits'
-hdul = fits.open(fits_file)
 
-# Display information about the file
-hdul.info()
+def apply_erosion(data, kernel_size=3, iterations=2):
+    """
+    Applique une érosion morphologique sur l'image.
 
-# Access the data from the primary HDU
-data = hdul[0].data
+    Paramètres:
+    - data: numpy array (image normalisée entre 0 et 1)
+    - kernel_size: taille du noyau d'érosion (défaut: 3)
+    - iterations: nombre d'itérations d'érosion (défaut: 2)
 
-# Access header information
-header = hdul[0].header
+    Retourne:
+    - image érodée normalisée entre 0 et 1
+    """
+    # Convertir en uint8 pour OpenCV
+    data_uint8 = (data * 255).astype(np.uint8)
 
-# Handle both monochrome and color images
-if data.ndim == 3:
-    # Color image - need to transpose to (height, width, channels)
-    if data.shape[0] == 3:  # If channels are first: (3, height, width)
-        data = np.transpose(data, (1, 2, 0))
-    # If already (height, width, 3), no change needed
+    # Créer le noyau
+    kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
-    # Normalize the entire image to [0, 1] for matplotlib
-    data_normalized = (data - data.min()) / (data.max() - data.min())
-    
-    # Save the data as a png image (no cmap for color images)
-    plt.imsave('./results/original.png', data_normalized)
+    # Appliquer l'érosion
+    eroded = cv.erode(data_uint8, kernel, iterations=iterations)
 
-    # For OpenCV, keep the RGB channel order (do not convert to BGR)
-    image = (data_normalized * 255).astype('uint8')
+    # Reconvertir en float normalisé
+    eroded_norm = eroded.astype(np.float32) / 255.0
 
-    # Define the kernel and apply erosion
-    kernel = np.ones((3, 3), np.uint8)
-    eroded_image = cv.erode(image, kernel, iterations=2)
-
-    # Convert back to float for FITS (keep original colors)
-    eroded_float = eroded_image.astype(np.float32) / 255.0
-
-    # Save PNG with matplotlib (preserves RGB colors)
-    plt.imsave('./results/eroded.png', eroded_image / 255.0)
-
-else:
-    # Monochrome image
-    plt.imsave('./results/original.png', data, cmap='gray')
-    
-    # Convert to uint8 for OpenCV
-    image = ((data - data.min()) / (data.max() - data.min()) * 255).astype('uint8')
-
-    # Apply erosion
-    kernel = np.ones((3, 3), np.uint8)
-    eroded_image = cv.erode(image, kernel, iterations=2)
-
-    # Convert back to float
-    eroded_float = eroded_image.astype(np.float32) / 255.0
+    return eroded_norm
 
 
+def normalize_image(data):
+    """
+    Normalise une image entre 0 et 1.
 
-# Define a kernel for erosion
-kernel = np.ones((3,3), np.uint8)
-# Perform erosion
-eroded_image = cv.erode(image, kernel, iterations=2)
+    Paramètres:
+    - data: numpy array
 
-# Convert back to RGB before saving (for color images only)
-if data.ndim == 3:
-    eroded_image = cv.cvtColor(eroded_image, cv.COLOR_BGR2RGB)
+    Retourne:
+    - image normalisée entre 0 et 1
+    """
+    data_min = np.nanmin(data)
+    data_max = np.nanmax(data)
 
-# Save the eroded image
-cv.imwrite('./results/eroded.png', eroded_image) # for easier visualization
-fits.writeto('./results/eroded.fits', eroded_float, overwrite=True)
+    if data_max > data_min:
+        return (data - data_min) / (data_max - data_min)
+    else:
+        return data
 
-# Close the file
-hdul.close()
+
+def prepare_image(data):
+    """
+    Prépare l'image pour le traitement (normalisation + transposition si nécessaire).
+
+    Paramètres:
+    - data: numpy array brut du fichier FITS
+
+    Retourne:
+    - image normalisée avec les dimensions correctes
+    """
+    # Gérer les images couleur
+    if data.ndim == 3:
+        if data.shape[0] == 3:  # (3, height, width) -> (height, width, 3)
+            data = np.transpose(data, (1, 2, 0))
+
+    # Normaliser
+    return normalize_image(data)
