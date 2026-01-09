@@ -1,5 +1,5 @@
 """
-Interface PyQt6 pour la réduction astro - Avant/Après
+PyQt6 Interface for Astronomical Star Reduction - Before/After Comparison
 """
 
 import sys
@@ -21,6 +21,7 @@ from reduction_localisee import compute_final_image
 
 
 class ImageCanvas(FigureCanvasQTAgg):
+    """Custom matplotlib canvas for displaying images"""
     clicked = pyqtSignal(object)
     
     def __init__(self, parent=None, width=5, height=5, dpi=100):
@@ -31,27 +32,24 @@ class ImageCanvas(FigureCanvasQTAgg):
         self.fig.patch.set_facecolor('black')
         self.image_data = None
         
-        # Binder le clic
+        # Connect click event
         self.mpl_connect('button_press_event', self.on_click)
 
-        # Afficher le message par défaut
+        # Display default message
         self.clear_display()
     
     def on_click(self, event):
-        """Émet le signal quand on clique"""
+        """Emit signal when clicked"""
         if event.inaxes is not None and self.image_data is not None:
             self.clicked.emit(self.image_data)
     
     def display_image(self, data, title, cmap='gray', vmin_percentile=0.5, vmax_percentile=99.5):
-        """Affiche une image avec normalisation par percentiles pour un meilleur contraste"""
+        """Display image with percentile normalization"""
         self.image_data = data
-        
         self.ax.clear()
         
-        # Normalisation par percentiles (méthode standard en astronomie)
-        # Cela évite que quelques pixels extrêmes ne détruisent le contraste
+        # Normalize using percentiles (prevents extreme pixels from destroying contrast)
         if data.ndim == 3:
-            # Pour les images RGB, calculer les percentiles sur toutes les données
             data_min = np.nanpercentile(data, vmin_percentile)
             data_max = np.nanpercentile(data, vmax_percentile)
         else:
@@ -63,7 +61,7 @@ class ImageCanvas(FigureCanvasQTAgg):
         else:
             data_norm = data
         
-        # Afficher
+        # Display image
         if data_norm.ndim == 3:
             self.ax.imshow(data_norm, origin='upper')
         else:
@@ -75,9 +73,9 @@ class ImageCanvas(FigureCanvasQTAgg):
         self.draw()
 
     def clear_display(self):
-        """Affiche le message par défaut quand aucune image n'est chargée"""
+        """Show default message when no image is loaded"""
         self.ax.clear()
-        self.ax.text(0.5, 0.5, 'Aucune image chargée',
+        self.ax.text(0.5, 0.5, 'No image loaded',
                      ha='center', va='center', color='gray', fontsize=12,
                      transform=self.ax.transAxes)
         self.ax.axis('off')
@@ -86,19 +84,18 @@ class ImageCanvas(FigureCanvasQTAgg):
 
 
 class ZoomWindow(QMainWindow):
-    """Fenêtre de zoom"""
+    """Zoom window for detailed image inspection"""
     def __init__(self, data, title):
         super().__init__()
         self.setWindowTitle(f"Zoom - {title}")
         self.setGeometry(100, 100, 900, 900)
         
-        # Créer le canvas
+        # Create larger canvas for zoom
         canvas = ImageCanvas(width=9, height=9, dpi=100)
-        # Utiliser 'gray' pour les images 2D, automatique pour les autres
         cmap = 'gray' if data.ndim == 2 else None
         canvas.display_image(data, title, cmap=cmap)
 
-        # Layout
+        # Setup layout
         layout = QVBoxLayout()
         layout.addWidget(canvas)
         
@@ -108,24 +105,24 @@ class ZoomWindow(QMainWindow):
 
 
 class ComparatorWindow(QMainWindow):
-    """Fenêtre simple de comparaison"""
+    """Side-by-side comparison with interactive slider"""
     def __init__(self, original, final):
         super().__init__()
-        self.setWindowTitle("Comparateur - Original vs Final")
+        self.setWindowTitle("Comparator - Original vs Final")
         self.setGeometry(100, 100, 1000, 800)
         self.original = original
         self.final = final
 
         layout = QVBoxLayout()
 
-        # Canvas pour l'image de comparaison
+        # Display canvas
         self.canvas = ImageCanvas(width=10, height=7, dpi=100)
         layout.addWidget(self.canvas, 1)
 
-        # Slider en bas avec spacing pour aligner avec l'image
+        # Slider for transition
         slider_container = QWidget()
         slider_layout = QHBoxLayout()
-        slider_layout.setContentsMargins(60, 0, 60, 0)  # Margins pour aligner avec l'image
+        slider_layout.setContentsMargins(60, 0, 60, 0)
 
         slider_label_left = QLabel("Original")
         slider_label_left.setFixedWidth(60)
@@ -159,11 +156,11 @@ class ComparatorWindow(QMainWindow):
         self.update_comparison()
 
     def update_comparison(self):
-        """Met à jour la comparaison selon le slider"""
+        """Update blend based on slider position"""
         value = self.slider.value()
         self.percent_label.setText(f"{value}%")
 
-        # Créer l'image composite
+        # Create composite image by splitting left and right
         split = int(self.original.shape[1] * value / 100)
         if self.original.ndim == 3:
             composite = np.zeros_like(self.original)
@@ -178,72 +175,73 @@ class ComparatorWindow(QMainWindow):
 
 
 class ReductionAstroApp(QMainWindow):
+    """Main application for star reduction processing"""
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Réduction Astro")
+        self.setWindowTitle("Star Reduction")
         self.setGeometry(50, 50, 1400, 850)
 
-        # Styles
+        # UI colors
         self.couleur_principale = "#2c3e50"
         self.couleur_bouton = "#3498db"
         self.couleur_texte = "#ecf0f1"
         
-        # Données
+        # Store image data at different processing stages
         self.images_data = {
-            'original': None,      # Image originale normalisée
-            'original_raw': None,  # Image brute pour la détection
-            'erodee': None,        # Image érodée
-            'masque_brut': None,   # Masque binaire des étoiles
-            'masque_lisse': None,  # Masque lissé
-            'finale': None         # Image finale
+            'original': None,      # Normalized original image
+            'original_raw': None,  # Raw image for star detection
+            'erodee': None,        # Eroded image
+            'masque_brut': None,   # Binary star mask
+            'masque_lisse': None,  # Smoothed mask
+            'finale': None         # Final processed image
         }
         self.nb_etoiles = 0
 
-        # Garder les fenêtres de zoom ouvertes
+        # Keep zoom windows open
         self.zoom_windows = []
         self.init_ui()
     
     def init_ui(self):
-        """Initialise l'interface"""
-        # Widget central
+        """Initialize the user interface"""
+        # Main central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Layout principal
+        # Main layout
         main_layout = QVBoxLayout()
         
-        # En-tête
+        # Header
         header_label = QLabel("Réduction d'Étoiles")
         header_font = QFont("Arial", 16, QFont.Weight.Bold)
         header_label.setFont(header_font)
         header_label.setStyleSheet(f"color: {self.couleur_principale}; padding: 10px;")
         main_layout.addWidget(header_label)
         
-        # Zone des images (grille 1x2)
+        # Image grid (1x2)
         images_layout = QGridLayout()
         
-        # Image originale
+        # Original image canvas
         self.canvas_original = ImageCanvas()
         self.canvas_original.clicked.connect(lambda data: self.show_zoom(data, "Image Originale"))
         images_layout.addWidget(self.canvas_original, 0, 0)
         
-        # Image finale
+        # Final image canvas
         self.canvas_finale = ImageCanvas()
         self.canvas_finale.clicked.connect(lambda data: self.show_zoom(data, "Image Finale"))
         images_layout.addWidget(self.canvas_finale, 0, 1)
 
         main_layout.addLayout(images_layout, 1)
 
-        # Ajouter le panneau de contrôles
+        # Add controls panel
         controls_panel = self.create_controls_panel()
         main_layout.addWidget(controls_panel)
 
-        # Label d'information (nbr d'étoiles détectées quand photo chargée)
+        # Info label (number of stars detected)
         self.info_label = QLabel("")
         self.info_label.setStyleSheet("color: #7f8c8d; padding: 5px; font-style: italic;")
         main_layout.addWidget(self.info_label)
 
-        # Barre de boutons
+        # Button bar
         buttons_layout = QHBoxLayout()
         
         btn_charger = QPushButton("Charger et traiter")
@@ -339,12 +337,12 @@ class ReductionAstroApp(QMainWindow):
         buttons_layout.addStretch()
         main_layout.addLayout(buttons_layout)
         
-        # Barre de statut
+        # Status bar
         self.statusBar().showMessage("En attente d'une image...")
         
         central_widget.setLayout(main_layout)
         
-        # Style global
+        # Global stylesheet
         self.setStyleSheet(f"""
             QMainWindow {{
                 background-color: #f0f0f0;
@@ -355,7 +353,7 @@ class ReductionAstroApp(QMainWindow):
         """)
     
     def create_panel(self, title, canvas):
-        """Crée un panel avec titre et canvas"""
+        """Create panel with title and canvas"""
         panel = QWidget()
         layout = QVBoxLayout()
         
@@ -387,7 +385,7 @@ class ReductionAstroApp(QMainWindow):
         return panel
 
     def create_controls_panel(self):
-        """Crée le panneau de contrôles avec sliders"""
+        """Create control panel with all sliders"""
         controls_group = QGroupBox("Paramètres de traitement")
         controls_group.setStyleSheet(f"""
             QGroupBox {{
@@ -406,12 +404,12 @@ class ReductionAstroApp(QMainWindow):
 
         layout = QVBoxLayout()
 
-        # --- Paramètres de détection d'étoiles ---
+        # Star detection parameters
         detection_label = QLabel("- Détection d'étoiles -")
         detection_label.setStyleSheet("font-weight: bold; color: #2980b9;")
         layout.addWidget(detection_label)
 
-        # FWHM (taille typique des étoiles)
+        # FWHM (star size - typical stellar Full Width at Half Maximum)
         fwhm_layout = QHBoxLayout()
         fwhm_layout.addWidget(QLabel("FWHM (taille étoiles):"))
         self.fwhm_slider = QSlider(Qt.Orientation.Horizontal)
@@ -424,7 +422,7 @@ class ReductionAstroApp(QMainWindow):
         fwhm_layout.addWidget(self.fwhm_label)
         layout.addLayout(fwhm_layout)
 
-        # Threshold (sensibilité de détection)
+        # Detection threshold (sensitivity in sigma units)
         threshold_layout = QHBoxLayout()
         threshold_layout.addWidget(QLabel("Seuil détection :"))
         self.threshold_slider = QSlider(Qt.Orientation.Horizontal)
@@ -437,7 +435,7 @@ class ReductionAstroApp(QMainWindow):
         threshold_layout.addWidget(self.threshold_label)
         layout.addLayout(threshold_layout)
 
-        # Rayon du masque
+        # Mask radius (pixels around each detected star)
         radius_layout = QHBoxLayout()
         radius_layout.addWidget(QLabel("Rayon masque étoiles:"))
         self.radius_slider = QSlider(Qt.Orientation.Horizontal)
@@ -450,12 +448,12 @@ class ReductionAstroApp(QMainWindow):
         radius_layout.addWidget(self.radius_label)
         layout.addLayout(radius_layout)
 
-        # --- Paramètres d'érosion ---
+        # Erosion parameters
         erosion_label = QLabel("- Érosion -")
         erosion_label.setStyleSheet("font-weight: bold; color: #27ae60;")
         layout.addWidget(erosion_label)
 
-        # Kernel size
+        # Erosion kernel size (higher = stronger erosion)
         kernel_layout = QHBoxLayout()
         kernel_layout.addWidget(QLabel("Taille du kernel:"))
         self.kernel_slider = QSlider(Qt.Orientation.Horizontal)
@@ -468,7 +466,7 @@ class ReductionAstroApp(QMainWindow):
         kernel_layout.addWidget(self.kernel_label)
         layout.addLayout(kernel_layout)
 
-        # Itérations
+        # Number of erosion iterations (higher = more erosion)
         iter_layout = QHBoxLayout()
         iter_layout.addWidget(QLabel("Itérations:"))
         self.iter_slider = QSlider(Qt.Orientation.Horizontal)
@@ -481,12 +479,12 @@ class ReductionAstroApp(QMainWindow):
         iter_layout.addWidget(self.iter_label)
         layout.addLayout(iter_layout)
 
-        # --- Paramètres du masque ---
+        # Mask smoothing parameters
         mask_label = QLabel("- Lissage du masque -")
         mask_label.setStyleSheet("font-weight: bold; color: #8e44ad;")
         layout.addWidget(mask_label)
 
-        # Flou gaussien
+        # Gaussian blur for smooth mask transitions
         gauss_layout = QHBoxLayout()
         gauss_layout.addWidget(QLabel("Flou gaussien :"))
         self.gauss_slider = QSlider(Qt.Orientation.Horizontal)
@@ -499,7 +497,7 @@ class ReductionAstroApp(QMainWindow):
         gauss_layout.addWidget(self.gauss_label)
         layout.addLayout(gauss_layout)
 
-        # Seuil du masque
+        # Mask threshold (binary threshold after smoothing)
         seuil_layout = QHBoxLayout()
         seuil_layout.addWidget(QLabel("Seuil masque:"))
         self.seuil_slider = QSlider(Qt.Orientation.Horizontal)
@@ -512,12 +510,12 @@ class ReductionAstroApp(QMainWindow):
         seuil_layout.addWidget(self.seuil_label)
         layout.addLayout(seuil_layout)
 
-        # --- Paramètres d'affichage ---
+        # Display parameters
         display_label = QLabel("- Affichage -")
         display_label.setStyleSheet("font-weight: bold; color: #e67e22;")
         layout.addWidget(display_label)
 
-        # Contraste (percentile max)
+        # Image contrast control (percentile normalization)
         contrast_layout = QHBoxLayout()
         contrast_layout.addWidget(QLabel("Contraste (percentile):"))
         self.contrast_slider = QSlider(Qt.Orientation.Horizontal)
@@ -534,28 +532,30 @@ class ReductionAstroApp(QMainWindow):
         return controls_group
 
     def on_slider_change(self):
-        """Appelé quand un slider change, met à jour les labels"""
-        # Mettre à jour tous les labels
+        """Update labels when slider changes and reprocess image"""
+        # Update all slider value labels
         self.fwhm_label.setText(f"{self.fwhm_slider.value() / 10.0:.1f}")
         self.threshold_label.setText(f"{self.threshold_slider.value() / 10.0:.1f}")
         self.radius_label.setText(f"{self.radius_slider.value() / 10.0:.1f}")
 
+        # Map kernel slider values to kernel sizes
         sizes = {1: "3x3", 2: "5x5", 3: "7x7", 4: "9x9", 5: "11x11", 6: "13x13", 7: "15x15", 8: "17x17", 9: "19x19", 10: "21x21"}
         self.kernel_label.setText(sizes[self.kernel_slider.value()])
         self.iter_label.setText(str(self.iter_slider.value()))
         self.gauss_label.setText(f"{self.gauss_slider.value() / 10.0:.1f}")
         self.seuil_label.setText(f"{self.seuil_slider.value() / 100.0:.2f}")
 
-        # Retraiter automatiquement si une image est chargée
+        # Reprocess if image is loaded
         if self.images_data['original'] is not None:
             self.retraiter()
 
     def on_contrast_change(self):
-        """Appelé quand le slider de contraste change"""
+        """Update display contrast based on slider"""
+        # Calculate percentile from slider value
         percentile = self.contrast_slider.value() / 10.0
         self.contrast_label.setText(f"{percentile:.1f}%")
 
-        # Réafficher les images avec le nouveau contraste
+        # Redisplay images with new contrast
         if self.images_data['original'] is not None:
             self.canvas_original.display_image(
                 self.images_data['original'],
@@ -573,7 +573,8 @@ class ReductionAstroApp(QMainWindow):
             )
 
     def charger_et_traiter(self):
-        """Charge et traite une image"""
+        """Load FITS file and process it"""
+        # Open file dialog
         chemin, _ = QFileDialog.getOpenFileName(
             self,
             "Sélectionner une image FITS",
@@ -587,38 +588,41 @@ class ReductionAstroApp(QMainWindow):
         self.statusBar().showMessage("Chargement et traitement en cours...")
 
         try:
-            # Charger l'image
+            # Load FITS file
             with fits.open(chemin) as hdul:
                 data_raw = hdul[0].data.astype(float)
 
-            # Garder les données brutes pour la détection
+            # Store raw data for star detection
             self.images_data['original_raw'] = data_raw.copy()
 
-            # Préparer l'image (normalisation + transposition)
+            # Prepare image (normalize + transpose if needed)
             data_norm = prepare_image(data_raw)
 
-            # Afficher l'original
+            # Display original image
             self.images_data['original'] = data_norm
             self.canvas_original.display_image(data_norm, "Originale")
 
-            # Traiter l'image
+            # Process the image
             self.traiter_image()
 
         except Exception as e:
+            # Show error message
             QMessageBox.critical(self, "Erreur", f"Erreur lors du traitement:\n{str(e)}")
             self.statusBar().showMessage("Erreur")
 
     def traiter_image(self):
-        """Applique l'algorithme de réduction d'étoiles"""
+        """Apply star reduction algorithm"""
         try:
+            # Get stored data
             data_norm = self.images_data['original']
             data_raw = self.images_data['original_raw']
 
-            # Récupérer les paramètres
+            # Retrieve all parameters from sliders
             fwhm = self.fwhm_slider.value() / 10.0
             threshold_sigma = self.threshold_slider.value() / 10.0
             radius = self.radius_slider.value() / 10.0
 
+            # Map slider values to kernel sizes
             kernel_sizes = {1: 3, 2: 5, 3: 7, 4: 9, 5: 11, 6: 13, 7: 15, 8: 17, 9: 19, 10: 21}
             kernel_size = kernel_sizes[self.kernel_slider.value()]
             iterations = self.iter_slider.value()
@@ -626,7 +630,7 @@ class ReductionAstroApp(QMainWindow):
             gauss_sigma = self.gauss_slider.value() / 10.0
             mask_threshold = self.seuil_slider.value() / 100.0
 
-            # --- ÉTAPE 1: Détecter les étoiles (masque binaire) ---
+            # STEP 1: Detect stars (create binary mask)
             masque_brut, sources = detect_stars(
                 data_raw,
                 fwhm=fwhm,
@@ -635,39 +639,41 @@ class ReductionAstroApp(QMainWindow):
             )
             self.images_data['masque_brut'] = masque_brut
 
+            # Count detected stars
             if sources is not None:
                 self.nb_etoiles = len(sources)
             else:
                 self.nb_etoiles = 0
 
-            # --- ÉTAPE 2: Appliquer le flou gaussien sur le masque ---
+            # STEP 2: Apply gaussian blur to smooth the mask
             masque_lisse = smooth_mask(masque_brut, sigma=gauss_sigma, threshold=mask_threshold)
             self.images_data['masque_lisse'] = masque_lisse
 
-            # --- ÉTAPE 3: Créer l'image érodée ---
+            # STEP 3: Create eroded image
+            # Apply morphological erosion to reduce stars
             data_erodee = apply_erosion(data_norm, kernel_size=kernel_size, iterations=iterations)
             self.images_data['erodee'] = data_erodee
 
-            # --- ÉTAPE 4: Calculer l'image finale ---
-            # I_final = (M × I_erode) + ((1 - M) × I_original)
+            # STEP 4: Compute final image
+            # Formula: I_final = (M × I_erode) + ((1 - M) × I_original)
+            # Blend original and eroded images using smooth mask
             image_finale = compute_final_image(data_norm, data_erodee, masque_lisse)
             self.images_data['finale'] = image_finale
 
-            # Afficher l'image finale
+            # Display final processed image
             self.canvas_finale.display_image(image_finale, "Finale")
 
-            # Mettre à jour le statut
+            # Update status bar
             self.statusBar().showMessage(f"Traitement terminé - {self.nb_etoiles} étoiles détectées")
-            self.info_label.setText(
-                f"Étoiles détectées: {self.nb_etoiles}"
-            )
+            self.info_label.setText(f"Étoiles détectées: {self.nb_etoiles}")
 
         except Exception as e:
+            # Show error message
             QMessageBox.critical(self, "Erreur", f"Erreur lors du traitement:\n{str(e)}")
             self.statusBar().showMessage("Erreur")
     
     def retraiter(self):
-        """Retraite l'image avec les nouveaux paramètres"""
+        """Reprocess image with updated parameters"""
         if self.images_data['original'] is None:
             return
 
@@ -675,46 +681,50 @@ class ReductionAstroApp(QMainWindow):
         self.traiter_image()
 
     def show_erodee(self):
-        """Affiche la fenêtre avec l'image érodée"""
+        """Display eroded image in zoom window"""
         if self.images_data['erodee'] is None:
             QMessageBox.warning(self, "Attention", "Veuillez charger une image d'abord")
             return
         
+        # Open zoom window with eroded image
         self.show_zoom(self.images_data['erodee'], "Image Érodée")
 
     def show_masque(self):
-        """Affiche la fenêtre avec le masque d'étoiles"""
+        """Display star mask in zoom window"""
         if self.images_data['masque_lisse'] is None:
             QMessageBox.warning(self, "Attention", "Veuillez charger une image d'abord")
             return
 
+        # Open zoom window with mask
         self.show_zoom(self.images_data['masque_lisse'], f"Masque d'étoiles ({self.nb_etoiles} détectées)")
 
     def show_zoom(self, data, title):
-        """Affiche une fenêtre de zoom"""
+        """Open zoom window for detailed image inspection"""
         if data is None:
             QMessageBox.warning(self, "Attention", "Aucune image à afficher")
             return
         
+        # Create and show zoom window
         zoom_window = ZoomWindow(data, title)
         zoom_window.show()
         
-        # Garder une référence pour éviter le garbage collection
+        # Keep reference to prevent garbage collection
         self.zoom_windows.append(zoom_window)
     
     def show_comparateur(self):
-        """Affiche la fenêtre de comparaison"""
+        """Open comparison window with slider"""
         if self.images_data['original'] is None or self.images_data['finale'] is None:
             QMessageBox.warning(self, "Attention", "Veuillez charger et traiter une image d'abord")
             return
 
+        # Create comparison window
         comparator = ComparatorWindow(self.images_data['original'], self.images_data['finale'])
         comparator.show()
         self.zoom_windows.append(comparator)
 
     def reinitialiser(self):
-        """Réinitialise les sliders"""
-        # Remettre les sliders à leurs valeurs par défaut
+        """Reset all sliders to default values"""
+        # Reset all sliders to defaults
         self.fwhm_slider.setValue(12)
         self.threshold_slider.setValue(25)
         self.radius_slider.setValue(36)
@@ -723,7 +733,7 @@ class ReductionAstroApp(QMainWindow):
         self.gauss_slider.setValue(18)
         self.seuil_slider.setValue(54)
 
-        # Si une image est chargée, la retraiter avec les valeurs par défaut
+        # Reprocess if image is loaded
         if self.images_data['original'] is not None:
             self.statusBar().showMessage("Réinitialisation des paramètres...")
         else:
@@ -731,6 +741,7 @@ class ReductionAstroApp(QMainWindow):
 
 
 def main():
+    """Start the application"""
     app = QApplication(sys.argv)
     window = ReductionAstroApp()
     window.show()
