@@ -42,17 +42,24 @@ class ImageCanvas(FigureCanvasQTAgg):
         if event.inaxes is not None and self.image_data is not None:
             self.clicked.emit(self.image_data)
     
-    def display_image(self, data, title, cmap='viridis'):
-        """Affiche une image"""
+    def display_image(self, data, title, cmap='gray', vmin_percentile=0.5, vmax_percentile=99.5):
+        """Affiche une image avec normalisation par percentiles pour un meilleur contraste"""
         self.image_data = data
         
         self.ax.clear()
         
-        # Normaliser les données
-        data_min = np.nanmin(data)
-        data_max = np.nanmax(data)
+        # Normalisation par percentiles (méthode standard en astronomie)
+        # Cela évite que quelques pixels extrêmes ne détruisent le contraste
+        if data.ndim == 3:
+            # Pour les images RGB, calculer les percentiles sur toutes les données
+            data_min = np.nanpercentile(data, vmin_percentile)
+            data_max = np.nanpercentile(data, vmax_percentile)
+        else:
+            data_min = np.nanpercentile(data, vmin_percentile)
+            data_max = np.nanpercentile(data, vmax_percentile)
+
         if data_max > data_min:
-            data_norm = (data - data_min) / (data_max - data_min)
+            data_norm = np.clip((data - data_min) / (data_max - data_min), 0, 1)
         else:
             data_norm = data
         
@@ -61,7 +68,7 @@ class ImageCanvas(FigureCanvasQTAgg):
             self.ax.imshow(data_norm, origin='upper')
         else:
             self.ax.imshow(data_norm, cmap=cmap, origin='upper')
-        
+
         self.ax.set_title(title, fontsize=10, color='white', fontweight='bold')
         self.ax.axis('off')
         self.fig.patch.set_facecolor('black')
@@ -87,8 +94,10 @@ class ZoomWindow(QMainWindow):
         
         # Créer le canvas
         canvas = ImageCanvas(width=9, height=9, dpi=100)
-        canvas.display_image(data, title, cmap='viridis' if data.ndim == 3 or len(data.shape) == 2 else 'hot')
-        
+        # Utiliser 'gray' pour les images 2D, automatique pour les autres
+        cmap = 'gray' if data.ndim == 2 else None
+        canvas.display_image(data, title, cmap=cmap)
+
         # Layout
         layout = QVBoxLayout()
         layout.addWidget(canvas)
@@ -503,6 +512,24 @@ class ReductionAstroApp(QMainWindow):
         seuil_layout.addWidget(self.seuil_label)
         layout.addLayout(seuil_layout)
 
+        # --- Paramètres d'affichage ---
+        display_label = QLabel("- Affichage -")
+        display_label.setStyleSheet("font-weight: bold; color: #e67e22;")
+        layout.addWidget(display_label)
+
+        # Contraste (percentile max)
+        contrast_layout = QHBoxLayout()
+        contrast_layout.addWidget(QLabel("Contraste (percentile):"))
+        self.contrast_slider = QSlider(Qt.Orientation.Horizontal)
+        self.contrast_slider.setMinimum(900)  # 90.0%
+        self.contrast_slider.setMaximum(1000)  # 100.0%
+        self.contrast_slider.setValue(995)  # 99.5%
+        self.contrast_slider.valueChanged.connect(self.on_contrast_change)
+        self.contrast_label = QLabel("99.5%")
+        contrast_layout.addWidget(self.contrast_slider)
+        contrast_layout.addWidget(self.contrast_label)
+        layout.addLayout(contrast_layout)
+
         controls_group.setLayout(layout)
         return controls_group
 
@@ -522,7 +549,29 @@ class ReductionAstroApp(QMainWindow):
         # Retraiter automatiquement si une image est chargée
         if self.images_data['original'] is not None:
             self.retraiter()
-    
+
+    def on_contrast_change(self):
+        """Appelé quand le slider de contraste change"""
+        percentile = self.contrast_slider.value() / 10.0
+        self.contrast_label.setText(f"{percentile:.1f}%")
+
+        # Réafficher les images avec le nouveau contraste
+        if self.images_data['original'] is not None:
+            self.canvas_original.display_image(
+                self.images_data['original'],
+                "Originale",
+                cmap='gray' if self.images_data['original'].ndim == 2 else None,
+                vmax_percentile=percentile
+            )
+
+        if self.images_data['finale'] is not None:
+            self.canvas_finale.display_image(
+                self.images_data['finale'],
+                "Finale",
+                cmap='gray' if self.images_data['finale'].ndim == 2 else None,
+                vmax_percentile=percentile
+            )
+
     def charger_et_traiter(self):
         """Charge et traite une image"""
         chemin, _ = QFileDialog.getOpenFileName(
@@ -605,7 +654,7 @@ class ReductionAstroApp(QMainWindow):
             self.images_data['finale'] = image_finale
 
             # Afficher l'image finale
-            self.canvas_finale.display_image(image_finale, "Finale (étoiles réduites)")
+            self.canvas_finale.display_image(image_finale, "Finale")
 
             # Mettre à jour le statut
             self.statusBar().showMessage(f"Traitement terminé - {self.nb_etoiles} étoiles détectées")
