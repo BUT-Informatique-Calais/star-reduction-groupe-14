@@ -1,5 +1,5 @@
 """
-Module de détection d'étoiles utilisant DAOStarFinder
+Star detection module using DAOStarFinder
 """
 
 from astropy.io import fits
@@ -12,19 +12,25 @@ from scipy import ndimage
 
 def detect_stars(data, fwhm=3.0, threshold_sigma=5.5, radius=3.5):
     """
-    Détecte les étoiles dans une image et retourne un masque binaire.
+    Detect stars in an image and return a binary mask.
 
-    Paramètres:
-    - data: numpy array 2D (image en niveaux de gris)
-    - fwhm: Full Width at Half Maximum des étoiles (défaut: 3.0)
-    - threshold_sigma: nombre d'écarts-types au-dessus du fond pour détecter une étoile (défaut: 5.5)
-    - radius: rayon des cercles dans le masque pour chaque étoile (défaut: 3.5)
+    Parameters:
 
-    Retourne:
-    - mask: numpy array 2D avec 255 pour les étoiles, 0 ailleurs
-    - sources: table des étoiles détectées (ou None si aucune)
+    data: 2D numpy array (grayscale image)
+
+    fwhm: Full Width at Half Maximum of the stars (default: 3.0)
+
+    threshold_sigma: number of standard deviations above the background to detect a star (default: 5.5)
+
+    radius: radius of the circles in the mask for each star (default: 3.5)
+
+    Returns:
+
+    mask: 2D numpy array with 255 for stars, 0 elsewhere
+
+    sources: table of detected stars (or None if none found)
     """
-    # Si image couleur, convertir en niveaux de gris
+    # If color image, convert to grayscale
     if data.ndim == 3:
         if data.shape[0] == 3:
             data_gray = data[0]
@@ -35,22 +41,22 @@ def detect_stars(data, fwhm=3.0, threshold_sigma=5.5, radius=3.5):
     else:
         data_gray = data
 
-    # Calculer les statistiques du fond
+    # Calculate background statistics
     mean, median, std = sigma_clipped_stats(data_gray, sigma=3.0)
 
-    # Créer le détecteur
+    # Create the detector
     daofind = DAOStarFinder(fwhm=fwhm, threshold=threshold_sigma * std)
 
-    # Trouver les étoiles
+    # Find the stars
     sources = daofind(data_gray - median)
 
-    # Créer un masque vide
+    # Create an empty mask
     mask = np.zeros(data_gray.shape, dtype=np.uint8)
 
     if sources is None or len(sources) == 0:
         return mask, None
 
-    # Pour chaque étoile détectée, dessiner un cercle dans le masque
+    # For each detected star, draw a circle in the mask
     for star in sources:
         x = int(star['xcentroid'])
         y = int(star['ycentroid'])
@@ -71,23 +77,27 @@ def detect_stars(data, fwhm=3.0, threshold_sigma=5.5, radius=3.5):
 
 def smooth_mask(mask, sigma=2.0, threshold=0.1):
     """
-    Applique un flou gaussien au masque pour des transitions douces.
+    Apply a Gaussian blur to the mask for smooth transitions.
 
-    Paramètres:
-    - mask: masque binaire (0-255)
-    - sigma: écart-type du flou gaussien
-    - threshold: seuil minimum pour garder les valeurs
+    Parameters:
 
-    Retourne:
-    - masque lissé normalisé entre 0 et 1
+    mask: binary mask (0-255)
+
+    sigma: standard deviation of the Gaussian blur
+
+    threshold: minimum threshold to keep values
+
+    Returns:
+
+    smoothed mask normalized between 0 and 1
     """
-    # Normaliser entre 0 et 1
+    # Normalize between 0 and 1
     mask_norm = mask.astype(np.float32) / 255.0
 
-    # Appliquer le flou gaussien
+    # Apply Gaussian blur
     mask_smooth = ndimage.gaussian_filter(mask_norm, sigma=sigma)
 
-    # Appliquer le seuil pour supprimer les valeurs très faibles
+    # Apply threshold to remove very low values
     mask_smooth = np.where(mask_smooth > threshold, mask_smooth, 0)
 
     return mask_smooth
