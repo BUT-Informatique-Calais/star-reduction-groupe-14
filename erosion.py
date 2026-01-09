@@ -1,7 +1,3 @@
-"""
-Module d'érosion d'image pour réduction d'étoiles
-"""
-
 from astropy.io import fits
 import matplotlib.pyplot as plt
 import cv2 as cv
@@ -10,26 +6,26 @@ import numpy as np
 
 def apply_erosion(data, kernel_size=3, iterations=2):
     """
-    Applique une érosion morphologique sur l'image.
+    Apply morphological erosion on the image.
 
-    Paramètres:
-    - data: numpy array (image normalisée entre 0 et 1)
-    - kernel_size: taille du noyau d'érosion (défaut: 3)
-    - iterations: nombre d'itérations d'érosion (défaut: 2)
+    Parameters:
+    - data: numpy array (normalized image between 0 and 1)
+    - kernel_size: size of the erosion kernel (default: 3)
+    - iterations: number of erosion iterations (default: 2)
 
-    Retourne:
-    - image érodée normalisée entre 0 et 1
+    Returns:
+    - eroded image normalized between 0 and 1
     """
-    # Convertir en uint8 pour OpenCV
+    # Convert to uint8 for OpenCV
     data_uint8 = (data * 255).astype(np.uint8)
 
-    # Créer le noyau
+    # Create the kernel
     kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
-    # Appliquer l'érosion
+    # Apply erosion
     eroded = cv.erode(data_uint8, kernel, iterations=iterations)
 
-    # Reconvertir en float normalisé
+    # Convert back to normalized float
     eroded_norm = eroded.astype(np.float32) / 255.0
 
     return eroded_norm
@@ -37,13 +33,13 @@ def apply_erosion(data, kernel_size=3, iterations=2):
 
 def normalize_image(data):
     """
-    Normalise une image entre 0 et 1.
+    Normalize an image between 0 and 1.
 
-    Paramètres:
+    Parameters:
     - data: numpy array
 
-    Retourne:
-    - image normalisée entre 0 et 1
+    Returns:
+    - normalized image between 0 and 1
     """
     data_min = np.nanmin(data)
     data_max = np.nanmax(data)
@@ -56,18 +52,20 @@ def normalize_image(data):
 
 def prepare_image(data):
     """
-    Prépare l'image pour le traitement (normalisation + transposition si nécessaire).
+    Prepare the image for processing (normalization + transposition if needed).
 
-    Paramètres:
-    - data: numpy array brut du fichier FITS
+    Parameters:
+    - data: raw numpy array from FITS file
 
-    Retourne:
-    - image normalisée avec les dimensions correctes
+    Returns:
+    - normalized image with correct dimensions
     """
-    # Gérer les images couleur
+    # Handle color images
     if data.ndim == 3:
-        if data.shape[0] == 3:  # (3, height, width) -> (height, width, 3)
+        if data.shape[0] == 3:
+            # If channels are first: (3, height, width)
             data = np.transpose(data, (1, 2, 0))
+        # If already (height, width, 3), no change needed
 
-    # Normaliser
+    # Normalize
     return normalize_image(data)

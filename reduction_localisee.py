@@ -1,6 +1,6 @@
 """
-Module de réduction localisée d'étoiles
-Implémente la formule: I_final = (M × I_erode) + ((1 - M) × I_original)
+Localized star reduction module
+Implements the formula: I_final = (M × I_erode) + ((1 - M) × I_original)
 """
 
 from astropy.io import fits
@@ -11,30 +11,30 @@ from scipy import ndimage
 
 def compute_final_image(original, eroded, mask):
     """
-    Calcule l'image finale en combinant l'originale et l'érodée via le masque.
+    Compute the final image by combining original and eroded via the mask.
 
-    Formule: I_final = (M × I_erode) + ((1 - M) × I_original)
+    Formula: I_final = (M × I_erode) + ((1 - M) × I_original)
 
-    Où le masque est blanc (M=1) -> on affiche l'image érodée (étoiles réduites)
-    Où le masque est noir (M=0) -> on affiche l'image originale (fond préservé)
+    Where mask is white (M=1) -> display eroded image (reduced stars)
+    Where mask is black (M=0) -> display original image (preserved background)
 
-    Paramètres:
-    - original: image originale normalisée (0-1)
-    - eroded: image érodée normalisée (0-1)
-    - mask: masque lissé normalisé (0-1), blanc = étoiles
+    Parameters:
+    - original: normalized original image (0-1)
+    - eroded: normalized eroded image (0-1)
+    - mask: smoothed normalized mask (0-1), white = stars
 
-    Retourne:
-    - image finale combinée
+    Returns:
+    - combined final image
     """
-    # Si l'image est en couleur et le masque en 2D, étendre le masque
+    # If image is color and mask is 2D, expand mask
     if original.ndim == 3 and mask.ndim == 2:
         mask_3d = np.stack([mask, mask, mask], axis=2)
     else:
         mask_3d = mask
 
-    # Appliquer la formule de combinaison
-    # Où M=1 (étoile) -> on prend l'érodée
-    # Où M=0 (fond) -> on prend l'originale
+    # Apply combination formula
+    # Where M=1 (star) -> take eroded
+    # Where M=0 (background) -> take original
     final = (mask_3d * eroded) + ((1 - mask_3d) * original)
 
     return final
@@ -42,25 +42,25 @@ def compute_final_image(original, eroded, mask):
 
 def process_star_reduction(original, eroded, star_mask, gauss_sigma=2.0, mask_threshold=0.1):
     """
-    Pipeline complet de réduction d'étoiles.
+    Complete star reduction pipeline.
 
-    Paramètres:
-    - original: image originale normalisée (0-1)
-    - eroded: image érodée normalisée (0-1)
-    - star_mask: masque binaire des étoiles (0-255)
-    - gauss_sigma: sigma du flou gaussien pour lisser le masque
-    - mask_threshold: seuil minimum pour le masque
+    Parameters:
+    - original: normalized original image (0-1)
+    - eroded: normalized eroded image (0-1)
+    - star_mask: binary mask of stars (0-255)
+    - gauss_sigma: sigma of gaussian blur for smoothing mask
+    - mask_threshold: minimum threshold for mask
 
-    Retourne:
-    - image finale, masque lissé
+    Returns:
+    - final image, smoothed mask
     """
-    # Lisser le masque pour des transitions douces
+    # Smooth the mask for smooth transitions
     mask_smooth = ndimage.gaussian_filter(star_mask.astype(np.float32) / 255.0, sigma=gauss_sigma)
 
-    # Appliquer le seuil
+    # Apply threshold
     mask_smooth = np.where(mask_smooth > mask_threshold, mask_smooth, 0)
 
-    # Calculer l'image finale
+    # Compute final image
     final = compute_final_image(original, eroded, mask_smooth)
 
     return final, mask_smooth
