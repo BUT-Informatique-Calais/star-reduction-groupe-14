@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, pyqtSignal
+from matplotlib.pyplot import gray
 
 from star_detection import detect_stars, smooth_mask
 from erosion import apply_erosion, prepare_image
@@ -42,7 +43,7 @@ class ImageCanvas(FigureCanvasQTAgg):
         if event.inaxes is not None and self.image_data is not None:
             self.clicked.emit(self.image_data)
     
-    def display_image(self, data, title, cmap='viridis'):
+    def display_image(self, data, title, cmap='gray'):
         """Affiche une image"""
         self.image_data = data
         
@@ -87,8 +88,10 @@ class ZoomWindow(QMainWindow):
         
         # Créer le canvas
         canvas = ImageCanvas(width=9, height=9, dpi=100)
-        canvas.display_image(data, title, cmap='viridis' if data.ndim == 3 or len(data.shape) == 2 else 'hot')
-        
+        # Utiliser 'gray' pour les images 2D, automatique pour les autres
+        cmap = 'gray' if data.ndim == 2 else None
+        canvas.display_image(data, title, cmap=cmap)
+
         # Layout
         layout = QVBoxLayout()
         layout.addWidget(canvas)
@@ -605,7 +608,7 @@ class ReductionAstroApp(QMainWindow):
             self.images_data['finale'] = image_finale
 
             # Afficher l'image finale
-            self.canvas_finale.display_image(image_finale, "Finale (étoiles réduites)")
+            self.canvas_finale.display_image(image_finale, "Finale")
 
             # Mettre à jour le statut
             self.statusBar().showMessage(f"Traitement terminé - {self.nb_etoiles} étoiles détectées")
