@@ -267,6 +267,24 @@ class ReductionAstroApp(QMainWindow):
 
         # Button bar
         buttons_layout = QHBoxLayout()
+
+        btn_retraiter = QPushButton("Retraiter")
+        btn_retraiter.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        btn_retraiter.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #27ae60;
+                color: {self.couleur_texte};
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #229954;
+            }}
+        """)
+        btn_retraiter.clicked.connect(self.retraiter)
+        buttons_layout.addWidget(btn_retraiter)
         
         btn_erodee = QPushButton("Voir image érodée")
         btn_erodee.setFont(QFont("Arial", 11, QFont.Weight.Bold))
@@ -419,8 +437,8 @@ class ReductionAstroApp(QMainWindow):
         fwhm_layout = QHBoxLayout()
         fwhm_layout.addWidget(QLabel("FWHM (taille étoiles):"))
         self.fwhm_slider = QSlider(Qt.Orientation.Horizontal)
-        self.fwhm_slider.setMinimum(10)
-        self.fwhm_slider.setMaximum(100)
+        self.fwhm_slider.setMinimum(5)
+        self.fwhm_slider.setMaximum(200)
         self.fwhm_slider.setValue(12)
         self.fwhm_slider.valueChanged.connect(self.on_slider_change)
         self.fwhm_label = QLabel("1.2")
@@ -551,9 +569,6 @@ class ReductionAstroApp(QMainWindow):
         self.gauss_label.setText(f"{self.gauss_slider.value() / 10.0:.1f}")
         self.seuil_label.setText(f"{self.seuil_slider.value() / 100.0:.2f}")
 
-        # Reprocess if image is loaded
-        if self.images_data['original'] is not None:
-            self.retraiter()
 
     def on_contrast_change(self):
         """Update display contrast based on slider"""
