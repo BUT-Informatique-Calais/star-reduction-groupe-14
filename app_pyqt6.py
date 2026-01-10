@@ -209,13 +209,37 @@ class ReductionAstroApp(QMainWindow):
         
         # Main layout
         main_layout = QVBoxLayout()
-        
-        # Header
+
+        # Header with button to load an image
+        header_layout = QHBoxLayout()
+
         header_label = QLabel("Réduction d'Étoiles")
         header_font = QFont("Arial", 16, QFont.Weight.Bold)
         header_label.setFont(header_font)
         header_label.setStyleSheet(f"color: {self.couleur_principale}; padding: 10px;")
-        main_layout.addWidget(header_label)
+        header_layout.addWidget(header_label)
+
+        header_layout.addStretch()
+
+        btn_charger = QPushButton("Charger une image")
+        btn_charger.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        btn_charger.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.couleur_bouton};
+                color: {self.couleur_texte};
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #2980b9;
+            }}
+        """)
+        btn_charger.clicked.connect(self.charger_et_traiter)
+        header_layout.addWidget(btn_charger)
+
+        main_layout.addLayout(header_layout)
         
         # Image grid (1x2)
         images_layout = QGridLayout()
@@ -243,24 +267,6 @@ class ReductionAstroApp(QMainWindow):
 
         # Button bar
         buttons_layout = QHBoxLayout()
-        
-        btn_charger = QPushButton("Charger et traiter")
-        btn_charger.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        btn_charger.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.couleur_bouton};
-                color: {self.couleur_texte};
-                border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #2980b9;
-            }}
-        """)
-        btn_charger.clicked.connect(self.charger_et_traiter)
-        buttons_layout.addWidget(btn_charger)
         
         btn_erodee = QPushButton("Voir image érodée")
         btn_erodee.setFont(QFont("Arial", 11, QFont.Weight.Bold))
