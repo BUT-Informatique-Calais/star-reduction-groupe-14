@@ -753,6 +753,7 @@ class ReductionAstroApp(QMainWindow):
         self.iter_slider.setValue(1)
         self.gauss_slider.setValue(18)
         self.seuil_slider.setValue(54)
+        self.contrast_slider.setValue(995)
 
         # Reprocess if image is loaded
         if self.images_data['original'] is not None:
