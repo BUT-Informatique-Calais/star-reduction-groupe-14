@@ -600,7 +600,7 @@ class ReductionAstroApp(QMainWindow):
             self,
             "Sélectionner une image FITS",
             "examples",
-            "FITS Files (*.fits *.fit)"
+            "FITS Files (*.fits *.fit *.FITS)"
         )
         
         if not chemin:
